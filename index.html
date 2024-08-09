@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顔認証システム</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #video, #canvas { display: block; margin: 0 auto; }
+        button { margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>顔認証システム</h1>
+    <p>顔認証を行いますか？</p>
+    <button id="startButton">はい</button>
+    <button id="noButton">いいえ</button>
+    <video id="video" width="640" height="480" style="display:none;"></video>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <p id="result"></p>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startButton = document.getElementById('startButton');
+        const noButton = document.getElementById('noButton');
+        const result = document.getElementById('result');
+
+        startButton.onclick = startAuthentication;
+        noButton.onclick = () => alert('認証をキャンセルしました。');
+
+        async function startAuthentication() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                video.play();
+                setTimeout(captureAndAuthenticate, 3000); // 3秒後に撮影
+            } catch (err) {
+                console.error("カメラの起動に失敗しました:", err);
+            }
+        }
+
+        function captureAndAuthenticate() {
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+            authenticateFace(imageDataUrl);
+        }
+
+        async function authenticateFace(imageDataUrl) {
+            const apiUrl = 'https://your-api-gateway-url.com/prod/authenticate';
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageDataUrl }),
+                });
+                const data = await response.json();
+                if (data.authenticated) {
+                    result.textContent = '認証成功！';
+                } else {
+                    result.textContent = '認証失敗！';
+                }
+            } catch (error) {
+                console.error('認証エラー:', error);
+                result.textContent = '認証処理中にエラーが発生しました。';
+            }
+        }
+    </script>
+</body>
+</html>
