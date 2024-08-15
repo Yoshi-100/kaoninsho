@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>顔認証システム</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         #video, #canvas { display: block; margin: 0 auto; }
         button { margin: 10px; }
+        #overlay { position: absolute; top: 0; left: 0; }
     </style>
 </head>
 <body>
@@ -15,38 +18,78 @@
     <p>顔認証を行いますか？</p>
     <button id="startButton">はい</button>
     <button id="noButton">いいえ</button>
-    <video id="video" width="640" height="480" style="display:none;"></video>
+    <div style="position: relative; width: 640px; height: 480px; margin: 0 auto;">
+        <video id="video" width="640" height="480" style="display:none;"></video>
+        <canvas id="overlay" width="640" height="480"></canvas>
+    </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <p id="instruction"></p>
     <p id="result"></p>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const overlay = document.getElementById('overlay');
         const startButton = document.getElementById('startButton');
         const noButton = document.getElementById('noButton');
+        const instruction = document.getElementById('instruction');
         const result = document.getElementById('result');
-
+        let model;
+        let stream;
         startButton.onclick = startAuthentication;
         noButton.onclick = () => alert('認証をキャンセルしました。');
-
         async function startAuthentication() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                model = await blazeface.load();
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 video.style.display = 'block';
                 video.play();
-                setTimeout(captureAndAuthenticate, 3000); // 3秒後に撮影
+                detectFace();
             } catch (err) {
                 console.error("カメラの起動に失敗しました:", err);
+                result.textContent = 'カメラの起動に失敗しました。ブラウザの設定を確認してください。';
             }
         }
-
+        async function detectFace() {
+            const predictions = await model.estimateFaces(video, false);
+            const ctx = overlay.getContext('2d');
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            if (predictions.length > 0) {
+                const face = predictions[0];
+                const x = face.topLeft[0];
+                const y = face.topLeft[1];
+                const width = face.bottomRight[0] - x;
+                const height = face.bottomRight[1] - y;
+                if (x < 160) {
+                    instruction.textContent = "右に動いてください";
+                } else if (x + width > 480) {
+                    instruction.textContent = "左に動いてください";
+                } else if (y < 120) {
+                    instruction.textContent = "下に動いてください";
+                } else if (y + height > 360) {
+                    instruction.textContent = "上に動いてください";
+                } else {
+                    instruction.textContent = "そのまま動かないでください";
+                    ctx.strokeStyle = "green";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x, y, width, height);
+                    setTimeout(captureAndAuthenticate, 2000);
+                    return;
+                }
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+            } else {
+                instruction.textContent = "顔が検出されません。カメラに向かって正面を向いてください。";
+            }
+            requestAnimationFrame(detectFace);
+        }
         function captureAndAuthenticate() {
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageDataUrl = canvas.toDataURL('image/jpeg');
             authenticateFace(imageDataUrl);
         }
-
         async function authenticateFace(imageDataUrl) {
             const apiUrl = 'https://your-api-gateway-url.com/prod/authenticate';
             try {
@@ -55,15 +98,23 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image: imageDataUrl }),
                 });
+                if (!response.ok) {
+                    throw new Error('サーバーエラー');
+                }
                 const data = await response.json();
                 if (data.authenticated) {
-                    result.textContent = '認証成功！';
+                    result.textContent = '顔の登録が完了しました！';
                 } else {
-                    result.textContent = '認証失敗！';
+                    result.textContent = '認証失敗！もう一度お試しください。';
                 }
             } catch (error) {
                 console.error('認証エラー:', error);
-                result.textContent = '認証処理中にエラーが発生しました。';
+                result.textContent = '認証処理中にエラーが発生しました。もう一度お試しください。';
+            } finally {
+                video.pause();
+                stream.getTracks().forEach(track => track.stop());
+                video.style.display = 'none';
+                overlay.style.display = 'none';
             }
         }
     </script>
