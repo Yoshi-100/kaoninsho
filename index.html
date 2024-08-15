@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>顔認証システム</title>
+    <title>顔登録システム</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
@@ -14,8 +14,8 @@
     </style>
 </head>
 <body>
-    <h1>顔認証システム</h1>
-    <p>顔認証を行いますか？</p>
+    <h1>顔登録システム</h1>
+    <p>顔の登録を行いますか？</p>
     <button id="startButton">はい</button>
     <button id="noButton">いいえ</button>
     <div style="position: relative; width: 640px; height: 480px; margin: 0 auto;">
@@ -34,11 +34,14 @@
         const noButton = document.getElementById('noButton');
         const instruction = document.getElementById('instruction');
         const result = document.getElementById('result');
+
         let model;
         let stream;
-        startButton.onclick = startAuthentication;
-        noButton.onclick = () => alert('認証をキャンセルしました。');
-        async function startAuthentication() {
+
+        startButton.onclick = startRegistration;
+        noButton.onclick = () => alert('登録をキャンセルしました。');
+
+        async function startRegistration() {
             try {
                 model = await blazeface.load();
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -51,16 +54,19 @@
                 result.textContent = 'カメラの起動に失敗しました。ブラウザの設定を確認してください。';
             }
         }
+
         async function detectFace() {
             const predictions = await model.estimateFaces(video, false);
             const ctx = overlay.getContext('2d');
             ctx.clearRect(0, 0, overlay.width, overlay.height);
+
             if (predictions.length > 0) {
                 const face = predictions[0];
                 const x = face.topLeft[0];
                 const y = face.topLeft[1];
                 const width = face.bottomRight[0] - x;
                 const height = face.bottomRight[1] - y;
+
                 if (x < 160) {
                     instruction.textContent = "右に動いてください";
                 } else if (x + width > 480) {
@@ -74,24 +80,28 @@
                     ctx.strokeStyle = "green";
                     ctx.lineWidth = 3;
                     ctx.strokeRect(x, y, width, height);
-                    setTimeout(captureAndAuthenticate, 2000);
+                    setTimeout(captureAndRegister, 2000);
                     return;
                 }
+
                 ctx.strokeStyle = "red";
                 ctx.lineWidth = 3;
                 ctx.strokeRect(x, y, width, height);
             } else {
                 instruction.textContent = "顔が検出されません。カメラに向かって正面を向いてください。";
             }
+
             requestAnimationFrame(detectFace);
         }
-        function captureAndAuthenticate() {
+
+        function captureAndRegister() {
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageDataUrl = canvas.toDataURL('image/jpeg');
-            authenticateFace(imageDataUrl);
+            registerFace(imageDataUrl);
         }
-        async function authenticateFace(imageDataUrl) {
-            const apiUrl = 'https://your-api-gateway-url.com/prod/authenticate';
+
+        async function registerFace(imageDataUrl) {
+            const apiUrl = 'https://your-api-gateway-url.com/prod/register';
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -102,14 +112,14 @@
                     throw new Error('サーバーエラー');
                 }
                 const data = await response.json();
-                if (data.authenticated) {
+                if (data.registered) {
                     result.textContent = '顔の登録が完了しました！';
                 } else {
-                    result.textContent = '認証失敗！もう一度お試しください。';
+                    result.textContent = '登録に失敗しました。もう一度お試しください。';
                 }
             } catch (error) {
-                console.error('認証エラー:', error);
-                result.textContent = '認証処理中にエラーが発生しました。もう一度お試しください。';
+                console.error('登録エラー:', error);
+                result.textContent = '登録中にエラーが発生しました。もう一度お試しください。';
             } finally {
                 video.pause();
                 stream.getTracks().forEach(track => track.stop());
