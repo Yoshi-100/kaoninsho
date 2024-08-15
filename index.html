@@ -167,7 +167,11 @@
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
                 const apiUrl = 'https://your-api-gateway-url.com/prod/register';
-                try {            async function registerFace(imageDataUrl) {
+                try {
+                    loadingIndicator.style.display = 'block';
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/            async function registerFace(imageDataUrl) {
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
                 const apiUrl = 'https://your-api-gateway-url.com/prod/register';
@@ -206,4 +210,3 @@
     </script>
 </body>
 </html>
-                
