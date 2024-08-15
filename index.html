@@ -171,13 +171,6 @@
                     loadingIndicator.style.display = 'block';
                     const response = await fetch(apiUrl, {
                         method: 'POST',
-                    loadingIndicator.style.display = 'block';
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: imageDataUrl }),
-                    });
-                    if (!response.ok) {
                         throw new Error('サーバーエラー');
                     }
                     const data = await response.json();
