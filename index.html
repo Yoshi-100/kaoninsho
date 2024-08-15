@@ -11,6 +11,7 @@
         button { margin: 10px; padding: 10px 20px; font-size: 16px; }
         #status { font-weight: bold; margin: 20px 0; }
         #instruction { font-style: italic; }
+        .loading { display: none; }
     </style>
 </head>
 <body>
@@ -18,9 +19,13 @@
     <p>顔の登録を行いますか？</p>
     <button id="startButton">はい、始めます</button>
     <button id="noButton">いいえ、やめます</button>
+    <div id="loadingIndicator" class="loading">
+        <p>処理中...</p>
+        <progress></progress>
+    </div>
     <p id="status"></p>
-    <div id="videoContainer">
-        <video id="video" width="640" height="480" style="display:none;"></video>
+    <div id="videoContainer" style="display: none;">
+        <video id="video" width="640" height="480"></video>
         <canvas id="overlay" width="640" height="480"></canvas>
     </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
@@ -39,44 +44,47 @@
             const status = document.getElementById('status');
             const instruction = document.getElementById('instruction');
             const result = document.getElementById('result');
+            const videoContainer = document.getElementById('videoContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
 
             let model;
             let stream;
 
-            startButton.addEventListener('click', startRegistration);
+            startButton.addEventListener('click', async () => {
+                startButton.disabled = true;
+                noButton.disabled = true;
+                loadingIndicator.style.display = 'block';
+                status.textContent = "システムを準備中...";
+                try {
+                    await startRegistration();
+                } catch (error) {
+                    console.error("エラーが発生しました:", error);
+                    status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+
             noButton.addEventListener('click', () => {
                 alert('登録をキャンセルしました。');
                 window.location.reload();
             });
 
             async function startRegistration() {
-                try {
-                    startButton.disabled = true;
-                    noButton.disabled = true;
-                    status.textContent = "準備中...";
-                    instruction.textContent = "";
+                status.textContent = "カメラの起動中...";
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+                videoContainer.style.display = 'block';
+                await video.play();
+                status.textContent = "カメラが起動しました。";
 
-                    status.textContent = "カメラの起動中...";
-                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                    video.srcObject = stream;
-                    video.style.display = 'block';
-                    await video.play();
-                    status.textContent = "カメラが起動しました。";
+                status.textContent = "顔認識システムの読み込み中...";
+                model = await blazeface.load();
+                status.textContent = "顔認識システムの準備完了。";
 
-                    status.textContent = "顔認識システムの読み込み中...";
-                    model = await blazeface.load();
-                    status.textContent = "顔認識システムの準備完了。";
-
-                    status.textContent = "顔を探しています...";
-                    instruction.textContent = "カメラに向かって正面を向いてください。";
-                    detectFace();
-                } catch (err) {
-                    console.error("エラーが発生しました:", err);
-                    status.textContent = 'エラーが発生しました。';
-                    instruction.textContent = 'ブラウザの設定を確認し、ページを再読み込みしてください。';
-                    startButton.disabled = false;
-                    noButton.disabled = false;
-                }
+                status.textContent = "顔を探しています...";
+                instruction.textContent = "カメラに向かって正面を向いてください。";
+                detectFace();
             }
 
             async function detectFace() {
@@ -159,17 +167,12 @@
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
                 const apiUrl = 'https://your-api-gateway-url.com/prod/register';
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: imageDataUrl }),
-                    });
-                    if (!response.ok) {            async function registerFace(imageDataUrl) {
+                try {            async function registerFace(imageDataUrl) {
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
                 const apiUrl = 'https://your-api-gateway-url.com/prod/register';
                 try {
+                    loadingIndicator.style.display = 'block';
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -191,10 +194,10 @@
                     status.textContent = 'エラー発生';
                     result.textContent = '登録中にエラーが発生しました。もう一度お試しください。';
                 } finally {
+                    loadingIndicator.style.display = 'none';
                     video.pause();
                     stream.getTracks().forEach(track => track.stop());
-                    video.style.display = 'none';
-                    overlay.style.display = 'none';
+                    videoContainer.style.display = 'none';
                     startButton.disabled = false;
                     noButton.disabled = false;
                 }
@@ -203,4 +206,4 @@
     </script>
 </body>
 </html>
-                        
+                
