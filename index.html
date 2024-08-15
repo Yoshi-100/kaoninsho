@@ -8,9 +8,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
-        #video, #canvas { display: block; margin: 0 auto; }
+        #videoContainer { position: relative; width: 640px; height: 480px; margin: 0 auto; }
+        #video, #overlay { position: absolute; top: 0; left: 0; }
         button { margin: 10px; }
-        #overlay { position: absolute; top: 0; left: 0; }
     </style>
 </head>
 <body>
@@ -18,7 +18,7 @@
     <p>顔の登録を行いますか？</p>
     <button id="startButton">はい</button>
     <button id="noButton">いいえ</button>
-    <div style="position: relative; width: 640px; height: 480px; margin: 0 auto;">
+    <div id="videoContainer">
         <video id="video" width="640" height="480" style="display:none;"></video>
         <canvas id="overlay" width="640" height="480"></canvas>
     </div>
@@ -43,24 +43,31 @@
 
         async function startRegistration() {
             try {
+                console.log("顔登録を開始します...");
+                instruction.textContent = "カメラを起動中...";
                 model = await blazeface.load();
+                console.log("Blazefaceモデルがロードされました");
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 video.style.display = 'block';
-                video.play();
+                await video.play();
+                console.log("カメラが起動しました");
+                instruction.textContent = "顔を検出しています...";
                 detectFace();
             } catch (err) {
-                console.error("カメラの起動に失敗しました:", err);
+                console.error("エラーが発生しました:", err);
                 result.textContent = 'カメラの起動に失敗しました。ブラウザの設定を確認してください。';
             }
         }
 
         async function detectFace() {
+            console.log("顔検出を開始します");
             const predictions = await model.estimateFaces(video, false);
             const ctx = overlay.getContext('2d');
             ctx.clearRect(0, 0, overlay.width, overlay.height);
 
             if (predictions.length > 0) {
+                console.log("顔が検出されました");
                 const face = predictions[0];
                 const x = face.topLeft[0];
                 const y = face.topLeft[1];
@@ -88,6 +95,7 @@
                 ctx.lineWidth = 3;
                 ctx.strokeRect(x, y, width, height);
             } else {
+                console.log("顔が検出されません");
                 instruction.textContent = "顔が検出されません。カメラに向かって正面を向いてください。";
             }
 
@@ -95,12 +103,14 @@
         }
 
         function captureAndRegister() {
+            console.log("写真を撮影します");
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageDataUrl = canvas.toDataURL('image/jpeg');
             registerFace(imageDataUrl);
         }
 
         async function registerFace(imageDataUrl) {
+            console.log("顔を登録します");
             const apiUrl = 'https://your-api-gateway-url.com/prod/register';
             try {
                 const response = await fetch(apiUrl, {
