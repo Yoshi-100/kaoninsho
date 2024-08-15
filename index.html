@@ -162,7 +162,6 @@
                 const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 registerFace(imageDataUrl);
             }
-
             async function registerFace(imageDataUrl) {
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
@@ -171,6 +170,10 @@
                     loadingIndicator.style.display = 'block';
                     const response = await fetch(apiUrl, {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: imageDataUrl }),
+                    });
+                    if (!response.ok) {
                         throw new Error('サーバーエラー');
                     }
                     const data = await response.json();
