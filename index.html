@@ -165,7 +165,7 @@
             async function registerFace(imageDataUrl) {
                 status.textContent = "顔を登録中...";
                 instruction.textContent = "";
-                const apiUrl = 'https://your-api-gateway-url.com/prod/register';
+                const apiUrl = 'https://8550m0vrp9.execute-api.ap-southeast-2.amazonaws.com/prod';
                 try {
                     loadingIndicator.style.display = 'block';
                     const response = await fetch(apiUrl, {
