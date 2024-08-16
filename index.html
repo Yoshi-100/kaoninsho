@@ -164,18 +164,28 @@
                 confirmationContainer.style.display = 'block';
                 status.textContent = "この写真で登録しますか？";
 
-                confirmYesButton.onclick = ()
-                                confirmYesButton.onclick = () => registerFace(imageDataUrl);
+                function captureAndConfirm() {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                tempCtx.scale(-1, 1);
+                tempCtx.translate(-tempCanvas.width, 0);
+                tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+                confirmImage.src = imageDataUrl;
+                videoContainer.style.display = 'none';
+                confirmationContainer.style.display = 'block';
+                status.textContent = "この写真で登録しますか？";
+
+                confirmYesButton.onclick = () => registerFace(imageDataUrl);
                 confirmNoButton.onclick = () => {
                     confirmationContainer.style.display = 'none';
                     videoContainer.style.display = 'block';
                     detectFace();
                 };
-            }
-
-            async function registerFace(imageDataUrl) {
-                status.textContent = "顔を登録中...";
-                instruction.textContent = "";
+            } 
                 confirmationContainer.style.display = 'none';
                 loadingIndicator.style.display = 'block';
 
