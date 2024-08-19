@@ -170,48 +170,48 @@ function captureAndConfirm() {
 }
 
 async function registerFace(imageDataUrl) {
-status.textContent = "顔を登録中...";
-instruction.textContent = "";
-confirmationContainer.style.display = 'none';
-loadingIndicator.style.display = 'block';
+    status.textContent = "顔を登録中...";
+    instruction.textContent = "";
+    confirmationContainer.style.display = 'none';
+    loadingIndicator.style.display = 'block';
 
+    const apiUrl = 'https://8550m0vrp9.execute-api.ap-southeast-2.amazonaws.com/prod';
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageDataUrl }),
+        });
+        const data = await response.json();
+        console.log('サーバーレスポンス:', data);
 
-const apiUrl = 'https://8550m0vrp9.execute-api.ap-southeast-2.amazonaws.com/prod';
-try {
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageDataUrl }),
-    });
-    const data = await response.json();
-    console.log('サーバーレスポンス:', data);
-
-    if (!response.ok) {
-        throw new Error(data.message || 'サーバーエラー');
+        if (!response.ok) {
+            throw new Error(data.message || 'サーバーエラー');
+        }
+        
+        // レスポンスの構造に合わせて解析
+        const bodyData = JSON.parse(data.body);
+        
+        if (bodyData.message === "Image uploaded successfully") {
+            status.textContent = '登録完了！';
+            result.textContent = `顔の登録が完了しました！ファイル名: ${bodyData.fileName}`;
+        } else if (bodyData.error) {
+            throw new Error(bodyData.error);
+        } else {
+            console.error('予期せぬレスポンス形式:', data);
+            throw new Error('予期せぬレスポンス形式');
+        }
+    } catch (error) {
+        console.error('登録エラー:', error);
+        status.textContent = 'エラー発生';
+        result.textContent = `登録中にエラーが発生しました: ${error.message}`;
+    } finally {
+        loadingIndicator.style.display = 'none';
+        video.pause();
+        stream.getTracks().forEach(track => track.stop());
+        startButton.disabled = false;
+        noButton.disabled = false;
     }
-    
-    // サーバーレスポンスの実際の形式に合わせて条件を調整
-    if (data.message === "Image uploaded successfully") {
-        status.textContent = '登録完了！';
-        result.textContent = `顔の登録が完了しました！ファイル名: ${data.fileName}`;
-    } else if (data.error) {
-        throw new Error(data.error);
-    } else {
-        console.error('予期せぬレスポンス形式:', data);
-        throw new Error('予期せぬレスポンス形式');
-    }
-} catch (error) {
-    console.error('登録エラー:', error);
-    status.textContent = 'エラー発生';
-    result.textContent = `登録中にエラーが発生しました: ${error.message}`;
-} finally {
-    loadingIndicator.style.display = 'none';
-    video.pause();
-    stream.getTracks().forEach(track => track.stop());
-    startButton.disabled = false;
-    noButton.disabled = false;
-}
-
 }
 });
 </script>
