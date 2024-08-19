@@ -56,119 +56,118 @@ const confirmationContainer = document.getElementById('confirmationContainer');
 const confirmImage = document.getElementById('confirmImage');
 const confirmYesButton = document.getElementById('confirmYesButton');
 const confirmNoButton = document.getElementById('confirmNoButton');
-    let model;
-    let stream;
+let model;
+let stream;
+startButton.addEventListener('click', startRegistration);
+noButton.addEventListener('click', () => {
+    alert('登録をキャンセルしました。');
+    window.location.reload();
+});
 
-    startButton.addEventListener('click', startRegistration);
-    noButton.addEventListener('click', () => {
-        alert('登録をキャンセルしました。');
-        window.location.reload();
-    });
-
-    async function startRegistration() {
-        startButton.disabled = true;
-        noButton.disabled = true;
-        loadingIndicator.style.display = 'block';
-        status.textContent = "システムを準備中...";
-        try {
-            await initializeCamera();
-            await loadFaceDetectionModel();
-            detectFace();
-        } catch (error) {
-            console.error("エラーが発生しました:", error);
-            status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
+async function startRegistration() {
+    startButton.disabled = true;
+    noButton.disabled = true;
+    loadingIndicator.style.display = 'block';
+    status.textContent = "システムを準備中...";
+    try {
+        await initializeCamera();
+        await loadFaceDetectionModel();
+        detectFace();
+    } catch (error) {
+        console.error("エラーが発生しました:", error);
+        status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
+    } finally {
+        loadingIndicator.style.display = 'none';
     }
+}
 
-    async function initializeCamera() {
-        status.textContent = "カメラの起動中...";
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-        video.srcObject = stream;
-        videoContainer.style.display = 'block';
-        await video.play();
-        status.textContent = "カメラが起動しました。";
-    }
+async function initializeCamera() {
+    status.textContent = "カメラの起動中...";
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    video.srcObject = stream;
+    videoContainer.style.display = 'block';
+    await video.play();
+    status.textContent = "カメラが起動しました。";
+}
 
-    async function loadFaceDetectionModel() {
-        status.textContent = "顔認識システムの読み込み中...";
-        model = await blazeface.load();
-        status.textContent = "顔認識システムの準備完了。";
-    }
+async function loadFaceDetectionModel() {
+    status.textContent = "顔認識システムの読み込み中...";
+    model = await blazeface.load();
+    status.textContent = "顔認識システムの準備完了。";
+}
 
-    async function detectFace() {
-        status.textContent = "顔を探しています...";
-        instruction.textContent = "カメラに向かって正面を向いてください。";
+async function detectFace() {
+    status.textContent = "顔を探しています...";
+    instruction.textContent = "カメラに向かって正面を向いてください。";
 
-        async function detect() {
-            const predictions = await model.estimateFaces(video, false);
-            const ctx = overlay.getContext('2d');
-            ctx.clearRect(0, 0, overlay.width, overlay.height);
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.translate(-overlay.width, 0);
+    async function detect() {
+        const predictions = await model.estimateFaces(video, false);
+        const ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-overlay.width, 0);
 
-            if (predictions.length > 0) {
-                const face = predictions[0];
-                const x = face.topLeft[0];
-                const y = face.topLeft[1];
-                const width = face.bottomRight[0] - x;
-                const height = face.bottomRight[1] - y;
+        if (predictions.length > 0) {
+            const face = predictions[0];
+            const x = face.topLeft[0];
+            const y = face.topLeft[1];
+            const width = face.bottomRight[0] - x;
+            const height = face.bottomRight[1] - y;
 
-                ctx.strokeStyle = "red";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x, y, width, height);
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, width, height);
 
-                if (x < 160) {
-                    instruction.textContent = "左に動いてください";
-                } else if (x + width > 480) {
-                    instruction.textContent = "右に動いてください";
-                } else if (y < 120) {
-                    instruction.textContent = "下に動いてください";
-                } else if (y + height > 360) {
-                    instruction.textContent = "上に動いてください";
-                } else {
-                    ctx.strokeStyle = "green";
-                    ctx.strokeRect(x, y, width, height);
-                    instruction.textContent = "そのまま動かないでください";
-                    setTimeout(captureAndConfirm, 2000);
-                    ctx.restore();
-                    return;
-                }
+            if (x < 160) {
+                instruction.textContent = "左に動いてください";
+            } else if (x + width > 480) {
+                instruction.textContent = "右に動いてください";
+            } else if (y < 120) {
+                instruction.textContent = "下に動いてください";
+            } else if (y + height > 360) {
+                instruction.textContent = "上に動いてください";
             } else {
-                instruction.textContent = "顔が見つかりません。カメラに向かって正面を向いてください。";
+                ctx.strokeStyle = "green";
+                ctx.strokeRect(x, y, width, height);
+                instruction.textContent = "そのまま動かないでください";
+                setTimeout(captureAndConfirm, 2000);
+                ctx.restore();
+                return;
             }
-
-            ctx.restore();
-            requestAnimationFrame(detect);
+        } else {
+            instruction.textContent = "顔が見つかりません。カメラに向かって正面を向いてください。";
         }
 
-        detect();
+        ctx.restore();
+        requestAnimationFrame(detect);
     }
 
-    function captureAndConfirm() {
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = video.videoWidth;
-        tempCanvas.height = video.videoHeight;
-        tempCtx.scale(-1, 1);
-        tempCtx.translate(-tempCanvas.width, 0);
-        tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+    detect();
+}
 
-        const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
-        confirmImage.src = imageDataUrl;
-        videoContainer.style.display = 'none';
-        confirmationContainer.style.display = 'block';
-        status.textContent = "この写真で登録しますか？";
+function captureAndConfirm() {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = video.videoWidth;
+    tempCanvas.height = video.videoHeight;
+    tempCtx.scale(-1, 1);
+    tempCtx.translate(-tempCanvas.width, 0);
+    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
-        confirmYesButton.onclick = () => registerFace(imageDataUrl);
-        confirmNoButton.onclick = () => {
-            confirmationContainer.style.display = 'none';
-            videoContainer.style.display = 'block';
-            detectFace();
-        };
-    }
+    const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+    confirmImage.src = imageDataUrl;
+    videoContainer.style.display = 'none';
+    confirmationContainer.style.display = 'block';
+    status.textContent = "この写真で登録しますか？";
+
+    confirmYesButton.onclick = () => registerFace(imageDataUrl);
+    confirmNoButton.onclick = () => {
+        confirmationContainer.style.display = 'none';
+        videoContainer.style.display = 'block';
+        detectFace();
+    };
+}
 
 async function registerFace(imageDataUrl) {
 status.textContent = "顔を登録中...";
@@ -185,18 +184,20 @@ try {
         body: JSON.stringify({ image: imageDataUrl }),
     });
     const data = await response.json();
-    console.log('サーバーレスポンス:', data);  // レスポンスの詳細をログ出力
+    console.log('サーバーレスポンス:', data);
 
     if (!response.ok) {
         throw new Error(data.message || 'サーバーエラー');
     }
     
-    if (data.registered) {
+    // サーバーレスポンスの実際の形式に合わせて条件を調整
+    if (data.message === "Image uploaded successfully") {
         status.textContent = '登録完了！';
-        result.textContent = '顔の登録が完了しました！';
+        result.textContent = `顔の登録が完了しました！ファイル名: ${data.fileName}`;
     } else if (data.error) {
         throw new Error(data.error);
     } else {
+        console.error('予期せぬレスポンス形式:', data);
         throw new Error('予期せぬレスポンス形式');
     }
 } catch (error) {
