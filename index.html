@@ -14,6 +14,9 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 .loading { display: none; }
 #confirmationContainer { display: none; margin-top: 20px; }
 #confirmImage { max-width: 100%; margin-bottom: 10px; }
+#registrationForm { display: none; margin: 20px auto; max-width: 400px; text-align: left; }
+#registrationForm label { display: block; margin-top: 10px; }
+#registrationForm input, #registrationForm select { width: 100%; padding: 5px; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -26,6 +29,30 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 <progress></progress>
 </div>
 <p id="status"></p>
+
+<form id="registrationForm">
+    <label for="name">氏名:</label>
+    <input type="text" id="name" name="name" required>
+    
+    <label for="nickname">ニックネーム:</label>
+    <input type="text" id="nickname" name="nickname" required>
+    
+    <label for="birthdate">生年月日:</label>
+    <select id="birthdate" name="birthdate" required></select>
+    
+    <label for="useDate">顔利用日:</label>
+    <select id="useDate" name="useDate" required></select>
+    
+    <label for="useLocation">顔利用場所:</label>
+    <select id="useLocation" name="useLocation" required>
+        <option value="自宅">自宅</option>
+        <option value="会社">会社</option>
+        <option value="外出先">外出先</option>
+    </select>
+    
+    <button type="submit">登録情報を送信</button>
+</form>
+
 <div id="videoContainer" style="display: none;">
 <video id="video" width="640" height="480"></video>
 <canvas id="overlay" width="640" height="480"></canvas>
@@ -56,17 +83,60 @@ const confirmationContainer = document.getElementById('confirmationContainer');
 const confirmImage = document.getElementById('confirmImage');
 const confirmYesButton = document.getElementById('confirmYesButton');
 const confirmNoButton = document.getElementById('confirmNoButton');
+const registrationForm = document.getElementById('registrationForm');
 let model;
 let stream;
-startButton.addEventListener('click', startRegistration);
+let userInfo = {};
+
+startButton.addEventListener('click', showRegistrationForm);
 noButton.addEventListener('click', () => {
     alert('登録をキャンセルしました。');
     window.location.reload();
 });
 
+registrationForm.addEventListener('submit', handleRegistrationSubmit);
+
+function showRegistrationForm() {
+    startButton.style.display = 'none';
+    noButton.style.display = 'none';
+    registrationForm.style.display = 'block';
+    populateDateSelects();
+}
+
+function populateDateSelects() {
+    const birthdate = document.getElementById('birthdate');
+    const useDate = document.getElementById('useDate');
+    const currentYear = new Date().getFullYear();
+
+    for (let year = currentYear; year >= 1900; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        birthdate.appendChild(option);
+    }
+
+    for (let year = currentYear; year >= currentYear - 5; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        useDate.appendChild(option);
+    }
+}
+
+function handleRegistrationSubmit(event) {
+    event.preventDefault();
+    userInfo = {
+        name: document.getElementById('name').value,
+        nickname: document.getElementById('nickname').value,
+        birthdate: document.getElementById('birthdate').value,
+        useDate: document.getElementById('useDate').value,
+        useLocation: document.getElementById('useLocation').value
+    };
+    registrationForm.style.display = 'none';
+    startRegistration();
+}
+
 async function startRegistration() {
-    startButton.disabled = true;
-    noButton.disabled = true;
     loadingIndicator.style.display = 'block';
     status.textContent = "システムを準備中...";
     try {
@@ -180,7 +250,10 @@ async function registerFace(imageDataUrl) {
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imageDataUrl }),
+            body: JSON.stringify({
+                image: imageDataUrl,
+                userInfo: userInfo
+            }),
         });
         const data = await response.json();
         console.log('サーバーレスポンス:', data);
@@ -209,8 +282,6 @@ async function registerFace(imageDataUrl) {
         loadingIndicator.style.display = 'none';
         video.pause();
         stream.getTracks().forEach(track => track.stop());
-        startButton.disabled = false;
-        noButton.disabled = false;
     }
 }
 });
