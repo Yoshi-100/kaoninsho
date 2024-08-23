@@ -251,10 +251,8 @@ async function registerFace(imageDataUrl) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                body: JSON.stringify({
-                    image: imageDataUrl,
-                    userInfo: userInfo
-                })
+                image: imageDataUrl,
+                userInfo: userInfo
             }),
         });
         const data = await response.json();
@@ -264,14 +262,17 @@ async function registerFace(imageDataUrl) {
             throw new Error(data.message || 'サーバーエラー');
         }
         
-        if (data.message === "Face registration successful") {
-            status.textContent = '登録完了！';
-            result.textContent = `顔の登録が完了しました！ユーザーID: ${data.userId}, ファイル名: ${data.fileName}`;
-        } else if (data.error) {
-            throw new Error(data.error);
+        // レスポンスの構造に合わせて解析
+        if (data.statusCode === 200) {
+            const bodyData = JSON.parse(data.body);
+            if (bodyData.message === "Face registration successful") {
+                status.textContent = '登録完了！';
+                result.textContent = `顔の登録が完了しました！ユーザーID: ${bodyData.userId}, ファイル名: ${bodyData.fileName}`;
+            } else {
+                throw new Error('予期せぬレスポンスメッセージ');
+            }
         } else {
-            console.error('予期せぬレスポンス形式:', data);
-            throw new Error('予期せぬレスポンス形式');
+            throw new Error(data.body ? JSON.parse(data.body).message : 'サーバーエラー');
         }
     } catch (error) {
         console.error('登録エラー:', error);
