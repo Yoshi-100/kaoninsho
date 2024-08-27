@@ -258,14 +258,11 @@ async function registerFace(imageDataUrl) {
         const data = await response.json();
         console.log('サーバーレスポンス:', data);
 
-        if (data.statusCode === 400) {
-            throw new Error(JSON.parse(data.body).message || 'Bad Request');
+        if (data.statusCode >= 400) {
+            const errorBody = JSON.parse(data.body);
+            throw new Error(errorBody.message || 'サーバーエラー');
         }
 
-        if (data.statusCode !== 200) {
-            throw new Error(data.body ? JSON.parse(data.body).message : 'サーバーエラー');
-        }
-        
         const bodyData = JSON.parse(data.body);
         if (bodyData.message === "Face registration successful") {
             status.textContent = '登録完了！';
