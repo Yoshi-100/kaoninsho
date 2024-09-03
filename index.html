@@ -17,6 +17,25 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #registrationForm { display: none; margin: 20px auto; max-width: 400px; text-align: left; }
 #registrationForm label { display: block; margin-top: 10px; }
 #registrationForm input, #registrationForm select { width: 100%; padding: 5px; margin-top: 5px; }
+#guideOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 480px;
+    border: 2px solid #fff;
+    box-sizing: border-box;
+}
+#faceGuide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 250px;
+    border: 2px solid #00ff00;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+}
 </style>
 </head>
 <body>
@@ -54,8 +73,11 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 </form>
 
 <div id="videoContainer" style="display: none;">
-<video id="video" width="640" height="480"></video>
-<canvas id="overlay" width="640" height="480"></canvas>
+    <video id="video" width="640" height="480"></video>
+    <canvas id="overlay" width="640" height="480"></canvas>
+    <div id="guideOverlay">
+        <div id="faceGuide"></div>
+    </div>
 </div>
 <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 <p id="instruction"></p>
@@ -87,6 +109,11 @@ const registrationForm = document.getElementById('registrationForm');
 let model;
 let stream;
 let userInfo = {};
+
+// 顔検出の閾値を設定
+const FACE_CONFIDENCE_THRESHOLD = 0.9;
+const FACE_SIZE_THRESHOLD = 0.4;
+const FACE_ANGLE_THRESHOLD = 15;
 
 startButton.addEventListener('click', showRegistrationForm);
 noButton.addEventListener('click', () => {
@@ -168,7 +195,7 @@ async function loadFaceDetectionModel() {
 
 async function detectFace() {
     status.textContent = "顔を探しています...";
-    instruction.textContent = "カメラに向かって正面を向いてください。";
+    instruction.textContent = "顔をガイド枠に合わせてください。";
 
     async function detect() {
         const predictions = await model.estimateFaces(video, false);
@@ -185,25 +212,29 @@ async function detectFace() {
             const width = face.bottomRight[0] - x;
             const height = face.bottomRight[1] - y;
 
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, width, height);
+            // 顔の位置と大きさをチェック
+            const isCentered = x > 160 && x + width < 480 && y > 120 && y + height < 360;
+            const isCorrectSize = width > overlay.width * FACE_SIZE_THRESHOLD && height > overlay.height * FACE_SIZE_THRESHOLD;
 
-            if (x < 160) {
-                instruction.textContent = "左に動いてください";
-            } else if (x + width > 480) {
-                instruction.textContent = "右に動いてください";
-            } else if (y < 120) {
-                instruction.textContent = "下に動いてください";
-            } else if (y + height > 360) {
-                instruction.textContent = "上に動いてください";
-            } else {
+            if (isCentered && isCorrectSize && face.probability[0] > FACE_CONFIDENCE_THRESHOLD) {
                 ctx.strokeStyle = "green";
+                ctx.lineWidth = 3;
                 ctx.strokeRect(x, y, width, height);
                 instruction.textContent = "そのまま動かないでください";
                 setTimeout(captureAndConfirm, 2000);
                 ctx.restore();
                 return;
+            } else {
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+                if (!isCentered) {
+                    instruction.textContent = "顔をガイド枠の中心に合わせてください";
+                } else if (!isCorrectSize) {
+                    instruction.textContent = "カメラに近づくか遠ざかってください";
+                } else {
+                    instruction.textContent = "顔をはっきりと映してください";
+                }
             }
         } else {
             instruction.textContent = "顔が見つかりません。カメラに向かって正面を向いてください。";
@@ -225,7 +256,7 @@ function captureAndConfirm() {
     tempCtx.translate(-tempCanvas.width, 0);
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
-    const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+    const imageDataUrl = tempCanvas.toDataURL('image/jpeg', 1.0);  // 最高品質のJPEG
     confirmImage.src = imageDataUrl;
     videoContainer.style.display = 'none';
     confirmationContainer.style.display = 'block';
