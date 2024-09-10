@@ -6,9 +6,27 @@
 <title>顔登録システム</title>
 <style>
 body { font-family: Arial, sans-serif; text-align: center; max-width: 800px; margin: 0 auto; padding: 20px; }
-#videoContainer { position: relative; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 4 / 3; }
-#video { width: 100%; height: 100%; object-fit: cover; }
-#overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#videoContainer { 
+    position: relative; 
+    width: 100%; 
+    max-width: 640px; 
+    margin: 0 auto; 
+    aspect-ratio: 4 / 3; 
+    overflow: hidden;
+}
+#video { 
+    position: absolute;
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+}
+#overlay { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+}
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
 #instruction { font-style: italic; position: absolute; bottom: 10px; left: 0; right: 0; background-color: rgba(0,0,0,0.5); color: white; padding: 5px; }
@@ -170,9 +188,9 @@ async function startRegistration() {
         await initializeCamera();
         await loadFaceDetectionModel();
         detectFace();
-    } catch (error) {
+     } catch (error) {
         console.error("エラーが発生しました:", error);
-                status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
+        status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
     } finally {
         loadingIndicator.style.display = 'none';
     }
@@ -183,8 +201,8 @@ async function initializeCamera() {
     const constraints = {
         video: {
             facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 3840 },
+            height: { ideal: 2160 }
         }
     };
     try {
@@ -194,7 +212,7 @@ async function initializeCamera() {
         return new Promise((resolve) => {
             video.onloadedmetadata = () => {
                 video.play();
-                adjustCanvasSize();
+                adjustVideoDisplay();
                 status.textContent = "カメラが起動しました。";
                 resolve();
             };
@@ -206,22 +224,26 @@ async function initializeCamera() {
     }
 }
 
-function adjustCanvasSize() {
-    const aspectRatio = video.videoWidth / video.videoHeight;
-    const containerWidth = videoContainer.clientWidth;
-    const containerHeight = videoContainer.clientHeight;
-    const containerAspectRatio = containerWidth / containerHeight;
+function adjustVideoDisplay() {
+    const videoAspectRatio = video.videoWidth / video.videoHeight;
+    const containerAspectRatio = videoContainer.clientWidth / videoContainer.clientHeight;
 
-    if (aspectRatio > containerAspectRatio) {
-        canvas.width = containerWidth;
-        canvas.height = containerWidth / aspectRatio;
+    if (videoAspectRatio > containerAspectRatio) {
+        video.style.width = '100%';
+        video.style.height = 'auto';
+        video.style.top = '50%';
+        video.style.left = '0';
+        video.style.transform = 'translateY(-50%)';
     } else {
-        canvas.height = containerHeight;
-        canvas.width = containerHeight * aspectRatio;
+        video.style.width = 'auto';
+        video.style.height = '100%';
+        video.style.top = '0';
+        video.style.left = '50%';
+        video.style.transform = 'translateX(-50%)';
     }
 
-    overlay.width = canvas.width;
-    overlay.height = canvas.height;
+    overlay.width = videoContainer.clientWidth;
+    overlay.height = videoContainer.clientHeight;
 }
 
 async function loadFaceDetectionModel() {
@@ -241,10 +263,25 @@ async function detectFace() {
 
         if (predictions.length > 0) {
             const face = predictions[0];
-            const x = face.topLeft[0] * (overlay.width / video.videoWidth);
-            const y = face.topLeft[1] * (overlay.height / video.videoHeight);
-            const width = (face.bottomRight[0] - face.topLeft[0]) * (overlay.width / video.videoWidth);
-            const height = (face.bottomRight[1] - face.topLeft[1]) * (overlay.height / video.videoHeight);
+            const videoAspectRatio = video.videoWidth / video.videoHeight;
+            const containerAspectRatio = videoContainer.clientWidth / videoContainer.clientHeight;
+            
+            let scaleX, scaleY, offsetX = 0, offsetY = 0;
+
+            if (videoAspectRatio > containerAspectRatio) {
+                scaleY = overlay.height / video.videoHeight;
+                scaleX = scaleY;
+                offsetX = (overlay.width - video.videoWidth * scaleX) / 2;
+            } else {
+                scaleX = overlay.width / video.videoWidth;
+                scaleY = scaleX;
+                offsetY = (overlay.height - video.videoHeight * scaleY) / 2;
+            }
+
+            const x = face.topLeft[0] * scaleX + offsetX;
+            const y = face.topLeft[1] * scaleY + offsetY;
+            const width = (face.bottomRight[0] - face.topLeft[0]) * scaleX;
+            const height = (face.bottomRight[1] - face.topLeft[1]) * scaleY;
 
             // 顔の位置と大きさをチェック
             const isCentered = x > overlay.width * 0.25 && x + width < overlay.width * 0.75 && y > overlay.height * 0.25 && y + height < overlay.height * 0.75;
@@ -278,10 +315,13 @@ async function detectFace() {
 }
 
 function captureAndConfirm() {
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = video.videoWidth;
+    tempCanvas.height = video.videoHeight;
+    const ctx = tempCanvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    const imageDataUrl = tempCanvas.toDataURL('image/jpeg', 1.0);
     confirmImage.src = imageDataUrl;
     videoContainer.style.display = 'none';
     confirmationContainer.style.display = 'block';
@@ -324,7 +364,7 @@ async function registerFace(imageDataUrl) {
             status.textContent = '登録完了！';
             result.textContent = `顔の登録が完了しました！ユーザーID: ${bodyData.userId}, ファイル名: ${bodyData.fileName}`;
         } else {
-            throw new Error('予期せぬレスポンスメッセージ');
+        throw new Error('予期せぬレスポンスメッセージ');
         }
     } catch (error) {
         console.error('登録エラー:', error);
@@ -337,7 +377,7 @@ async function registerFace(imageDataUrl) {
     }
 }
 
-window.addEventListener('resize', adjustCanvasSize);
+window.addEventListener('resize', adjustVideoDisplay);
 });
 </script>
 </body>
