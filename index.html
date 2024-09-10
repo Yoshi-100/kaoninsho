@@ -6,8 +6,8 @@
 <title>顔登録システム</title>
 <style>
 body { font-family: Arial, sans-serif; text-align: center; }
-#videoContainer { position: relative; width: 640px; height: 480px; margin: 0 auto; }
-#video, #overlay { position: absolute; top: 0; left: 0; transform: scaleX(-1); }
+#videoContainer { position: relative; width: 100%; max-width: 640px; margin: 0 auto; }
+#video, #overlay { position: absolute; top: 0; left: 0; width: 100%; height: auto; transform: scaleX(-1); }
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
 #instruction { font-style: italic; }
@@ -21,8 +21,8 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
     position: absolute;
     top: 0;
     left: 0;
-    width: 640px;
-    height: 480px;
+    width: 100%;
+    height: 100%;
     border: 2px solid #fff;
     box-sizing: border-box;
 }
@@ -31,8 +31,8 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 200px;
-    height: 250px;
+    width: 60%;
+    height: 75%;
     border: 2px solid #00ff00;
     border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
 }
@@ -73,13 +73,13 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 </form>
 
 <div id="videoContainer" style="display: none;">
-    <video id="video" width="640" height="480"></video>
-    <canvas id="overlay" width="640" height="480"></canvas>
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="overlay"></canvas>
     <div id="guideOverlay">
         <div id="faceGuide"></div>
     </div>
 </div>
-<canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+<canvas id="canvas" style="display:none;"></canvas>
 <p id="instruction"></p>
 <p id="result"></p>
 <div id="confirmationContainer">
@@ -174,17 +174,39 @@ async function startRegistration() {
         console.error("エラーが発生しました:", error);
         status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
     } finally {
-        loadingIndicator.style.display = 'none';
+                loadingIndicator.style.display = 'none';
     }
 }
 
 async function initializeCamera() {
     status.textContent = "カメラの起動中...";
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-    video.srcObject = stream;
-    videoContainer.style.display = 'block';
-    await video.play();
-    status.textContent = "カメラが起動しました。";
+    const constraints = {
+        video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+        }
+    };
+    try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        videoContainer.style.display = 'block';
+        return new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.play();
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
+                status.textContent = "カメラが起動しました。";
+                resolve();
+            };
+        });
+    } catch (error) {
+        console.error("カメラの起動に失敗しました:", error);
+        status.textContent = "カメラの起動に失敗しました。";
+        throw error;
+    }
 }
 
 async function loadFaceDetectionModel() {
@@ -213,7 +235,7 @@ async function detectFace() {
             const height = face.bottomRight[1] - y;
 
             // 顔の位置と大きさをチェック
-            const isCentered = x > 160 && x + width < 480 && y > 120 && y + height < 360;
+            const isCentered = x > overlay.width * 0.25 && x + width < overlay.width * 0.75 && y > overlay.height * 0.25 && y + height < overlay.height * 0.75;
             const isCorrectSize = width > overlay.width * FACE_SIZE_THRESHOLD && height > overlay.height * FACE_SIZE_THRESHOLD;
 
             ctx.strokeStyle = isCentered && isCorrectSize ? "green" : "red";
@@ -227,15 +249,9 @@ async function detectFace() {
                 return;
             } else {
                 if (!isCentered) {
-                    if (x < 160) instruction.textContent = "右に移動してください";
-                    else if (x + width > 480) instruction.textContent = "左に移動してください";
-                    else if (y < 120) instruction.textContent = "下に移動してください";
-                    else if (y + height > 360) instruction.textContent = "上に移動してください";
+                    instruction.textContent = "顔をガイド枠の中心に合わせてください";
                 } else if (!isCorrectSize) {
-                    if (width < overlay.width * FACE_SIZE_THRESHOLD) 
-                        instruction.textContent = "カメラに近づいてください";
-                    else 
-                        instruction.textContent = "カメラから離れてください";
+                    instruction.textContent = "カメラとの距離を調整してください";
                 } else {
                     instruction.textContent = "顔をはっきりと映してください";
                 }
@@ -252,15 +268,12 @@ async function detectFace() {
 }
 
 function captureAndConfirm() {
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = video.videoWidth;
-    tempCanvas.height = video.videoHeight;
-    tempCtx.scale(-1, 1);
-    tempCtx.translate(-tempCanvas.width, 0);
-    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const imageDataUrl = tempCanvas.toDataURL('image/jpeg', 1.0);  // 最高品質のJPEG
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 1.0);  // 最高品質のJPEG
     confirmImage.src = imageDataUrl;
     videoContainer.style.display = 'none';
     confirmationContainer.style.display = 'block';
