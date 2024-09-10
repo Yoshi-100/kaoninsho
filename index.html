@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>顔登録システム</title>
 <style>
-body { font-family: Arial, sans-serif; text-align: center; }
+body { font-family: Arial, sans-serif; text-align: center; max-width: 800px; margin: 0 auto; padding: 20px; }
 #videoContainer { position: relative; width: 100%; max-width: 640px; margin: 0 auto; }
-#video, #overlay { position: absolute; top: 0; left: 0; width: 100%; height: auto; transform: scaleX(-1); }
+#video, #overlay { position: absolute; top: 0; left: 0; width: 100%; height: auto; }
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
 #instruction { font-style: italic; }
@@ -174,8 +174,8 @@ async function startRegistration() {
         console.error("エラーが発生しました:", error);
         status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
     } finally {
-                loadingIndicator.style.display = 'none';
-    }
+        loadingIndicator.style.display = 'none';
+        }
 }
 
 async function initializeCamera() {
@@ -223,9 +223,6 @@ async function detectFace() {
         const predictions = await model.estimateFaces(video, false);
         const ctx = overlay.getContext('2d');
         ctx.clearRect(0, 0, overlay.width, overlay.height);
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.translate(-overlay.width, 0);
 
         if (predictions.length > 0) {
             const face = predictions[0];
@@ -245,7 +242,6 @@ async function detectFace() {
             if (isCentered && isCorrectSize && face.probability[0] > FACE_CONFIDENCE_THRESHOLD) {
                 instruction.textContent = "そのまま動かないでください";
                 setTimeout(captureAndConfirm, 2000);
-                ctx.restore();
                 return;
             } else {
                 if (!isCentered) {
@@ -260,7 +256,6 @@ async function detectFace() {
             instruction.textContent = "顔が見つかりません。カメラに向かって正面を向いてください。";
         }
 
-        ctx.restore();
         requestAnimationFrame(detect);
     }
 
@@ -269,8 +264,6 @@ async function detectFace() {
 
 function captureAndConfirm() {
     const ctx = canvas.getContext('2d');
-    ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const imageDataUrl = canvas.toDataURL('image/jpeg', 1.0);  // 最高品質のJPEG
