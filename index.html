@@ -7,10 +7,11 @@
 <style>
 body { font-family: Arial, sans-serif; text-align: center; max-width: 800px; margin: 0 auto; padding: 20px; }
 #videoContainer { position: relative; width: 100%; max-width: 640px; margin: 0 auto; }
-#video, #overlay { position: absolute; top: 0; left: 0; width: 100%; height: auto; }
+#video { width: 100%; height: auto; }
+#overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
-#instruction { font-style: italic; }
+#instruction { font-style: italic; position: absolute; bottom: 10px; left: 0; right: 0; background-color: rgba(0,0,0,0.5); color: white; padding: 5px; }
 .loading { display: none; }
 #confirmationContainer { display: none; margin-top: 20px; }
 #confirmImage { max-width: 100%; margin-bottom: 10px; }
@@ -23,8 +24,7 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
     left: 0;
     width: 100%;
     height: 100%;
-    border: 2px solid #fff;
-    box-sizing: border-box;
+    pointer-events: none;
 }
 #faceGuide {
     position: absolute;
@@ -78,9 +78,9 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
     <div id="guideOverlay">
         <div id="faceGuide"></div>
     </div>
+    <p id="instruction"></p>
 </div>
 <canvas id="canvas" style="display:none;"></canvas>
-<p id="instruction"></p>
 <p id="result"></p>
 <div id="confirmationContainer">
 <img id="confirmImage" alt="確認用画像">
@@ -175,7 +175,7 @@ async function startRegistration() {
         status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
     } finally {
         loadingIndicator.style.display = 'none';
-        }
+    }
 }
 
 async function initializeCamera() {
@@ -183,8 +183,8 @@ async function initializeCamera() {
     const constraints = {
         video: {
             facingMode: "user",
-            width: { ideal: 640 },
-            height: { ideal: 480 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
         }
     };
     try {
@@ -264,9 +264,11 @@ async function detectFace() {
 
 function captureAndConfirm() {
     const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 1.0);  // 最高品質のJPEG
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
     confirmImage.src = imageDataUrl;
     videoContainer.style.display = 'none';
     confirmationContainer.style.display = 'block';
