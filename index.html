@@ -3,117 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>顔登録システム</title>
+<title>顔登録システム1</title>
 <style>
 body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; }
+#mainContainer { display: flex; justify-content: space-around; align-items: flex-start; }
 #videoContainer { 
     position: relative; 
-    width: 100%; 
-    max-width: 100vw; 
-    margin: 0 auto; 
-    aspect-ratio: 4 / 3; 
-    overflow: hidden;
+    width: 640px; 
+    height: 480px; 
 }
-#video { 
-    position: absolute;
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; 
-}
-#overlay { 
+#video, #overlay { 
     position: absolute; 
     top: 0; 
     left: 0; 
     width: 100%; 
     height: 100%; 
 }
+#formContainer { width: 300px; }
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
 #instruction { font-style: italic; position: absolute; bottom: 10px; left: 0; right: 0; background-color: rgba(0,0,0,0.5); color: white; padding: 5px; }
 .loading { display: none; }
 #confirmationContainer { display: none; margin-top: 20px; }
 #confirmImage { max-width: 100%; margin-bottom: 10px; }
-#registrationForm { display: none; margin: 20px auto; max-width: 400px; text-align: left; }
+#registrationForm { margin: 20px auto; text-align: left; }
 #registrationForm label { display: block; margin-top: 10px; }
 #registrationForm input, #registrationForm select { width: 100%; padding: 5px; margin-top: 5px; }
-#guideOverlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-#faceGuide {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 60%;
-    height: 60%;
-    border: 2px solid #00ff00;
-    border-radius: 50%;
-}
 </style>
 </head>
 <body>
 <h1>顔登録システム</h1>
-<p>顔の登録を行いますか？</p>
-<button id="startButton">はい、始めます</button>
-<button id="noButton">いいえ、やめます</button>
-<div id="loadingIndicator" class="loading">
-<p>処理中...</p>
-<progress></progress>
+<div id="mainContainer">
+    <div id="formContainer">
+        <form id="registrationForm">
+            <label for="name">氏名:</label>
+            <input type="text" id="name" name="name" required>
+            
+            <label for="nickname">ニックネーム:</label>
+            <input type="text" id="nickname" name="nickname" required>
+            
+            <label for="birthdate">生年月日:</label>
+            <select id="birthdate" name="birthdate" required></select>
+            
+            <label for="useDate">顔利用日:</label>
+            <select id="useDate" name="useDate" required></select>
+            
+            <label for="useLocation">顔利用場所:</label>
+            <select id="useLocation" name="useLocation" required>
+                <option value="自宅">自宅</option>
+                <option value="会社">会社</option>
+                <option value="外出先">外出先</option>
+            </select>
+            
+            <button type="submit">登録開始</button>
+        </form>
+    </div>
+    <div id="videoContainer" style="display: none;">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="overlay"></canvas>
+        <p id="instruction"></p>
+    </div>
 </div>
 <p id="status"></p>
-
-<form id="registrationForm">
-    <label for="name">氏名:</label>
-    <input type="text" id="name" name="name" required>
-    
-    <label for="nickname">ニックネーム:</label>
-    <input type="text" id="nickname" name="nickname" required>
-    
-    <label for="birthdate">生年月日:</label>
-    <select id="birthdate" name="birthdate" required></select>
-    
-    <label for="useDate">顔利用日:</label>
-    <select id="useDate" name="useDate" required></select>
-    
-    <label for="useLocation">顔利用場所:</label>
-    <select id="useLocation" name="useLocation" required>
-        <option value="自宅">自宅</option>
-        <option value="会社">会社</option>
-        <option value="外出先">外出先</option>
-    </select>
-    
-    <button type="submit">登録情報を送信</button>
-</form>
-
-<div id="videoContainer" style="display: none;">
-    <video id="video" playsinline autoplay muted></video>
-    <canvas id="overlay"></canvas>
-    <div id="guideOverlay">
-        <div id="faceGuide"></div>
-    </div>
-    <p id="instruction"></p>
+<div id="loadingIndicator" class="loading">
+    <p>処理中...</p>
+    <progress></progress>
 </div>
-<canvas id="canvas" style="display:none;"></canvas>
-<p id="result"></p>
 <div id="confirmationContainer">
-<img id="confirmImage" alt="確認用画像">
-<button id="confirmYesButton">はい、この写真で登録します</button>
-<button id="confirmNoButton">いいえ、もう一度撮影します</button>
+    <img id="confirmImage" alt="確認用画像">
+    <button id="confirmYesButton">はい、この写真で登録します</button>
+    <button id="confirmNoButton">いいえ、もう一度撮影します</button>
 </div>
+<p id="result"></p>
+
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
 const overlay = document.getElementById('overlay');
-const startButton = document.getElementById('startButton');
-const noButton = document.getElementById('noButton');
 const status = document.getElementById('status');
 const instruction = document.getElementById('instruction');
 const result = document.getElementById('result');
@@ -128,25 +96,11 @@ let model;
 let stream;
 let userInfo = {};
 
-// 顔検出の閾値を設定
-const FACE_CONFIDENCE_THRESHOLD = 0.85;
-const FACE_SIZE_THRESHOLD = 0.4;
-const FACE_ANGLE_THRESHOLD = 15;
-
-startButton.addEventListener('click', showRegistrationForm);
-noButton.addEventListener('click', () => {
-    alert('登録をキャンセルしました。');
-    window.location.reload();
-});
+// 顔検出の閾値を設定（閾値を下げました）
+const FACE_CONFIDENCE_THRESHOLD = 0.7;
+const FACE_SIZE_THRESHOLD = 0.3;
 
 registrationForm.addEventListener('submit', handleRegistrationSubmit);
-
-function showRegistrationForm() {
-    startButton.style.display = 'none';
-    noButton.style.display = 'none';
-    registrationForm.style.display = 'block';
-    populateDateSelects();
-}
 
 function populateDateSelects() {
     const birthdate = document.getElementById('birthdate');
@@ -177,7 +131,6 @@ function handleRegistrationSubmit(event) {
         useDate: document.getElementById('useDate').value,
         useLocation: document.getElementById('useLocation').value
     };
-    registrationForm.style.display = 'none';
     startRegistration();
 }
 
@@ -188,7 +141,7 @@ async function startRegistration() {
         await initializeCamera();
         await loadFaceDetectionModel();
         detectFace();
-    } catch (error){
+    } catch (error) {
         console.error("エラーが発生しました:", error);
         status.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
     } finally {
@@ -201,8 +154,8 @@ async function initializeCamera() {
     const constraints = {
         video: {
             facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 640 },
+            height: { ideal: 480 }
         }
     };
     try {
@@ -212,7 +165,6 @@ async function initializeCamera() {
         return new Promise((resolve) => {
             video.onloadedmetadata = () => {
                 video.play();
-                adjustVideoDisplay();
                 status.textContent = "カメラが起動しました。";
                 resolve();
             };
@@ -224,30 +176,6 @@ async function initializeCamera() {
     }
 }
 
-function adjustVideoDisplay() {
-    const videoAspectRatio = video.videoWidth / video.videoHeight;
-    const containerWidth = videoContainer.clientWidth;
-    const containerHeight = videoContainer.clientHeight;
-    const containerAspectRatio = containerWidth / containerHeight;
-
-    if (videoAspectRatio > containerAspectRatio) {
-        video.style.width = '100%';
-        video.style.height = 'auto';
-        video.style.top = '50%';
-        video.style.left = '0';
-        video.style.transform = 'translateY(-50%)';
-    } else {
-        video.style.width = 'auto';
-        video.style.height = '100%';
-        video.style.top = '0';
-        video.style.left = '50%';
-        video.style.transform = 'translateX(-50%)';
-    }
-
-    overlay.width = containerWidth;
-    overlay.height = containerHeight;
-}
-
 async function loadFaceDetectionModel() {
     status.textContent = "顔認識システムの読み込み中...";
     model = await blazeface.load();
@@ -256,7 +184,7 @@ async function loadFaceDetectionModel() {
 
 async function detectFace() {
     status.textContent = "顔を探しています...";
-    instruction.textContent = "顔をガイド枠に合わせてください。";
+    instruction.textContent = "顔をカメラに向けてください。";
 
     async function detect() {
         const predictions = await model.estimateFaces(video, false);
@@ -265,25 +193,10 @@ async function detectFace() {
 
         if (predictions.length > 0) {
             const face = predictions[0];
-            const videoAspectRatio = video.videoWidth / video.videoHeight;
-            const containerAspectRatio = overlay.width / overlay.height;
-            
-            let scaleX, scaleY, offsetX = 0, offsetY = 0;
-
-            if (videoAspectRatio > containerAspectRatio) {
-                scaleY = overlay.height / video.videoHeight;
-                scaleX = scaleY;
-                offsetX = (overlay.width - video.videoWidth * scaleX) / 2;
-            } else {
-                scaleX = overlay.width / video.videoWidth;
-                scaleY = scaleX;
-                offsetY = (overlay.height - video.videoHeight * scaleY) / 2;
-            }
-
-            const x = face.topLeft[0] * scaleX + offsetX;
-            const y = face.topLeft[1] * scaleY + offsetY;
-            const width = (face.bottomRight[0] - face.topLeft[0]) * scaleX;
-            const height = (face.bottomRight[1] - face.topLeft[1]) * scaleY;
+            const x = face.topLeft[0];
+            const y = face.topLeft[1];
+            const width = face.bottomRight[0] - face.topLeft[0];
+            const height = face.bottomRight[1] - face.topLeft[1];
 
             // 顔の位置と大きさをチェック
             const isCentered = x > overlay.width * 0.25 && x + width < overlay.width * 0.75 && y > overlay.height * 0.25 && y + height < overlay.height * 0.75;
@@ -298,25 +211,15 @@ async function detectFace() {
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            // 顔の向きを検出
-            const leftEye = face.landmarks[0];
-            const rightEye = face.landmarks[1];
-            const nose = face.landmarks[2];
-            const eyeDistance = Math.sqrt(Math.pow(rightEye[0] - leftEye[0], 2) + Math.pow(rightEye[1] - leftEye[1], 2));
-            const noseOffset = Math.abs(nose[0] - (leftEye[0] + rightEye[0]) / 2);
-            const isFacingStraight = noseOffset < eyeDistance * 0.15;
-
-            if (isCentered && isCorrectSize && face.probability[0] > FACE_CONFIDENCE_THRESHOLD && isFacingStraight) {
+            if (isCentered && isCorrectSize && face.probability[0] > FACE_CONFIDENCE_THRESHOLD) {
                 instruction.textContent = "そのまま動かないでください";
                 setTimeout(captureAndConfirm, 2000);
                 return;
             } else {
                 if (!isCentered) {
-                    instruction.textContent = "顔をガイド枠の中心に合わせてください";
+                    instruction.textContent = "顔を中心に移動してください";
                 } else if (!isCorrectSize) {
                     instruction.textContent = "カメラとの距離を調整してください";
-                } else if (!isFacingStraight) {
-                    instruction.textContent = "正面を向いてください";
                 } else {
                     instruction.textContent = "顔をはっきりと映してください";
                 }
@@ -394,8 +297,8 @@ async function registerFace(imageDataUrl) {
     }
 }
 
-window.addEventListener('resize', adjustVideoDisplay);
+populateDateSelects();
 });
 </script>
 </body>
-</html>
+</html>    
