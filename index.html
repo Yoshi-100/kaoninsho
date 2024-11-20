@@ -3,14 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>顔登録システム1</title>
+<title>顔登録システム</title>
 <style>
 body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; }
-#mainContainer { display: flex; justify-content: space-around; align-items: flex-start; }
+#mainContainer { display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap; }
 #videoContainer { 
     position: relative; 
     width: 640px; 
     height: 480px; 
+    margin: 0 auto;
 }
 #video, #overlay { 
     position: absolute; 
@@ -19,7 +20,7 @@ body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 2
     width: 100%; 
     height: 100%; 
 }
-#formContainer { width: 300px; }
+#formContainer { width: 300px; margin: 0 auto; }
 button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 #status { font-weight: bold; margin: 20px 0; }
 #instruction { font-style: italic; position: absolute; bottom: 10px; left: 0; right: 0; background-color: rgba(0,0,0,0.5); color: white; padding: 5px; }
@@ -32,7 +33,7 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 </style>
 </head>
 <body>
-<h1>顔登録システム</h1>
+<h1>顔登録システム1</h1>
 <div id="mainContainer">
     <div id="formContainer">
         <form id="registrationForm">
@@ -96,9 +97,9 @@ let model;
 let stream;
 let userInfo = {};
 
-// 顔検出の閾値を設定（閾値を下げました）
-const FACE_CONFIDENCE_THRESHOLD = 0.7;
-const FACE_SIZE_THRESHOLD = 0.3;
+// 顔検出の閾値を設定（さらに下げました）
+const FACE_CONFIDENCE_THRESHOLD = 0.5;
+const FACE_SIZE_THRESHOLD = 0.2;
 
 registrationForm.addEventListener('submit', handleRegistrationSubmit);
 
@@ -165,6 +166,8 @@ async function initializeCamera() {
         return new Promise((resolve) => {
             video.onloadedmetadata = () => {
                 video.play();
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
                 status.textContent = "カメラが起動しました。";
                 resolve();
             };
@@ -301,4 +304,4 @@ populateDateSelects();
 });
 </script>
 </body>
-</html>    
+</html>
