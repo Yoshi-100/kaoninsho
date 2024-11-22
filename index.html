@@ -33,7 +33,7 @@ button { margin: 10px; padding: 10px 20px; font-size: 16px; }
 </style>
 </head>
 <body>
-<h1>顔登録システム1</h1>
+<h1>顔登録システム</h1>
 <div id="mainContainer">
     <div id="formContainer">
         <form id="registrationForm">
@@ -97,9 +97,10 @@ let model;
 let stream;
 let userInfo = {};
 
-// 顔検出の閾値を設定（さらに下げました）
-const FACE_CONFIDENCE_THRESHOLD = 0.5;
-const FACE_SIZE_THRESHOLD = 0.2;
+// 顔検出の閾値を設定（精度向上）
+const FACE_CONFIDENCE_THRESHOLD = 0.8;
+const FACE_SIZE_THRESHOLD = 0.3;
+const FACE_SIZE_MAX_THRESHOLD = 0.7;
 
 registrationForm.addEventListener('submit', handleRegistrationSubmit);
 
@@ -184,7 +185,6 @@ async function loadFaceDetectionModel() {
     model = await blazeface.load();
     status.textContent = "顔認識システムの準備完了。";
 }
-
 async function detectFace() {
     status.textContent = "顔を探しています...";
     instruction.textContent = "顔をカメラに向けてください。";
@@ -204,17 +204,18 @@ async function detectFace() {
             // 顔の位置と大きさをチェック
             const isCentered = x > overlay.width * 0.25 && x + width < overlay.width * 0.75 && y > overlay.height * 0.25 && y + height < overlay.height * 0.75;
             const isCorrectSize = width > overlay.width * FACE_SIZE_THRESHOLD && height > overlay.height * FACE_SIZE_THRESHOLD;
+            const isTooClose = width > overlay.width * FACE_SIZE_MAX_THRESHOLD || height > overlay.height * FACE_SIZE_MAX_THRESHOLD;
 
             // たまご型の枠を描画
             ctx.beginPath();
             ctx.moveTo(x + width / 2, y);
             ctx.bezierCurveTo(x + width, y, x + width, y + height * 0.7, x + width / 2, y + height);
             ctx.bezierCurveTo(x, y + height * 0.7, x, y, x + width / 2, y);
-            ctx.strokeStyle = isCentered && isCorrectSize ? "green" : "red";
+            ctx.strokeStyle = isCentered && isCorrectSize && !isTooClose ? "green" : "red";
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            if (isCentered && isCorrectSize && face.probability[0] > FACE_CONFIDENCE_THRESHOLD) {
+            if (isCentered && isCorrectSize && !isTooClose && face.probability[0] > FACE_CONFIDENCE_THRESHOLD) {
                 instruction.textContent = "そのまま動かないでください";
                 setTimeout(captureAndConfirm, 2000);
                 return;
@@ -222,7 +223,9 @@ async function detectFace() {
                 if (!isCentered) {
                     instruction.textContent = "顔を中心に移動してください";
                 } else if (!isCorrectSize) {
-                    instruction.textContent = "カメラとの距離を調整してください";
+                    instruction.textContent = "カメラに近づいてください";
+                } else if (isTooClose) {
+                    instruction.textContent = "カメラから少し離れてください";
                 } else {
                     instruction.textContent = "顔をはっきりと映してください";
                 }
